@@ -1,28 +1,24 @@
-cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 20, granularity = 50, axis.labels = c('y', 'x')) {
-  # Description of Variables: For all of the following variables, res.yw is defined as the
-  # residuals from regressing y onto w and res.xw is the residuals of regressing x onto w
+cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wx, R2.wy, granularity = 50, contour.config = NA, axis.labels = c('x', 'y')) {
+  # Description of Variables: For all of the following variables, res.xw is defined as the
+  # residuals from regressing x onto w and res.yw is the residuals of regressing y onto w
   
-  # - cor.res: number in range [-1,1] representing the correlation between res.yw  and res.xw
+  # - cor.res: number in range [-1,1] representing the correlation between res.xw and res.yw
   # - sd.ratio.res: non-negative number representing the standard deviation of res.yw divided by standard deviation of res.xw
-  # - R2.wy: number in [0,1) that represents the coefficient of determination R^2_{w;y}
   # - R2.wx: number in [0,1) that represents the coefficient of determination R^2_{w;x}
+  # - R2.wy: number in [0,1) that represents the coefficient of determination R^2_{w;y}
   # - practical.significance: number representing a threshold of practical significance
-  # - no.contours: positive integer representing the number of contour lines for the plot
+  # - contour.config: a numeric vector of length three c(start, end, step), or NA to use default contours values, note 
+  #   - start: the level for the first contour
+  #   - end: the level for the last contour
+  #   - step: the interval between contour levels
   # - granularity: integer in [50,300] with larger number producing more refined plots
-  # - axis.labels: vector of strings with the names of the y and x variables in that order
+  # - axis.labels: vector of strings with the names of the x and y variables in that order
   
   # Verify plotly installed
   if (!requireNamespace("plotly", quietly = TRUE)) {
     stop(
       "The 'plotly' package is required to run this function.\n",
       "Please install it using: install.packages('plotly')"
-    )
-  }
-  
-  if (!requireNamespace("latex2exp", quietly = TRUE)) {
-    stop(
-      "The 'latex2exp' package is required to run this function.\n",
-      "Please install it using: install.packages('latex2exp')"
     )
   }
   
@@ -83,28 +79,16 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
     stop("Parameter 'R2.wx' must be a single numeric value in range [0,1).")
   }
   
-  # # practical.significance:
-  # # Must be a single numeric value.
-  # if (!is.numeric(practical.significance) || length(practical.significance) != 1) {
-  #   stop("Parameter 'practical.significance' must be a single numeric value.")
-  # }
-  # # Must not be NA/NaN.
-  # if (is.na(practical.significance)) {
-  #   stop("Parameter 'practical.significance' cannot be NA/NaN.")
-  # }
-  
-  # no.contours
-  # Must be a single integer
-  if (!(round(no.contours) == no.contours) || length(no.contours) != 1) {
-    stop("Parameter 'no.contours' must be a single integer value.")
+  # contour.config:
+  # Must be a numeric vector of length 3, or a single NA value.
+  if (! (any(is.na(contour.config)) && length(contour.config) == 1) &&
+      ! (is.numeric(contour.config) && length(contour.config) == 3) ) {
+    stop("Parameter 'contour.config' must be a numeric vector of length three or a single NA value.")
   }
-  # Must not be NA/NaN.
-  if (is.na(no.contours)) {
-    stop("Parameter 'no.contours' cannot be NA/NaN.")
-  }
-  # Must be positive
-  if (no.contours <= 0) {
-    stop("Parameter 'no.contours' must be positive.")
+
+  # If numeric, must not contain NA/NaN values.
+  if (is.numeric(contour.config) && any(is.na(contour.config))) {
+    stop("Parameter 'contour.config' cannot contain NA/NaN values when specified as a vector.")
   }
   
   # granularity:
@@ -138,26 +122,6 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
   if (any(axis.labels == "")) {
     stop("Parameter 'axis.labels' cannot contain empty strings.")
   }
-  
-  # # Check if graph makes sense
-  # # Throw error if practical.significance > 0 > max(L(Bx,By))
-  # if (practical.significance > 0 & suppressWarnings(f(cor.res, sd.ratio.res, 0, 0, 0, 0, -1, 1)[1]) < 0) {
-  #   stop("Parameter 'practical.significance' is positive, but max(L(Bx,By)) is negative, so the plot cannot be displayed.")
-  # }
-  # # Throw error if practical.significance < 0 < min(U(Bx,By))
-  # if (practical.significance < 0 & suppressWarnings(f(cor.res, sd.ratio.res, 0, 0, 0, 0, -1, 1)[2]) > 0) {
-  #   stop("Parameter 'practical.significance' is negative, but min(U(Bx,By)) is positive, so the plot cannot be displayed.")
-  # }
-  # 
-  # # Warn if practical.significance > max(L(Bx,By)) and practical,significance > 0
-  # if (practical.significance > suppressWarnings(f(cor.res, sd.ratio.res, 0, 0, 0, 0, -1, 1)[1]) & practical.significance > 0) {
-  #   warning("The 'practical.significance' value is too high to generate a contour line. Please reduce 'practical.significance' to create a useful plot.")
-  # }
-  # 
-  # # Warn if practical.significance < min(U(Bx,By)) and practical significance < 0
-  # if (practical.significance < suppressWarnings(f(cor.res, sd.ratio.res, 0, 0, 0, 0, -1, 1)[2]) & practical.significance < 0) {
-  #   warning("The 'practical.significance' value is too low to generate a contour line. Please reduce 'practical.significance' to create a useful plot.")
-  # }
   
   # Function to calculate confounding interval
   # From "Regression Analysis of Unmeasured Confounding" by Knaeble, Osting, Abramson
@@ -212,20 +176,20 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
   }
   
   # Fine grid for values of Bx,By
-  Bx_vals <- seq(R2.wx, .96, length.out = granularity)
-  By_vals <- seq(R2.wy, .96, length.out = granularity)
+  Bx_vals <- seq(R2.wx, .99, length.out = granularity)
+  By_vals <- seq(R2.wy, .99, length.out = granularity)
   
   # Calculate upper and lower bounds U(Bx,By) and L(Bx,By) on Bx,By grid
   U.BxBy <- matrix(ncol = granularity, nrow = granularity)
   L.BxBy <- matrix(ncol = granularity, nrow = granularity)
   for (i in 1:granularity) {
+    upper_limit_x <- (Bx_vals[i] - R2.wx) / (1 - R2.wx)
+    
     for (j in 1:granularity) {
-      # Calculate Upper Limits From Equation 12
       upper_limit_y <- (By_vals[j] - R2.wy) / (1 - R2.wy)
-      upper_limit_x <- (Bx_vals[i] - R2.wx) / (1 - R2.wx)
-      
-      U.BxBy[j,i] <- suppressWarnings(f(cor.res, sd.ratio.res, 0, upper_limit_x, 0, upper_limit_y, -1, 1)[2])
-      L.BxBy[j,i] <- suppressWarnings(f(cor.res, sd.ratio.res, 0, upper_limit_x, 0, upper_limit_y, -1, 1)[1])
+      result <- suppressWarnings(f(cor.res, sd.ratio.res, 0, upper_limit_x, 0, upper_limit_y, -1, 1))
+      U.BxBy[j,i] <- result[2]
+      L.BxBy[j,i] <- result[1]
     }
   }
   
@@ -241,73 +205,83 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
   # Define tooltiop
   tooltip <- matrix(
     paste0(
-      "B<sub>", axis.labels[2], "</sub>: ", round(Bx_vals[col(L.BxBy)], 5), "<br>",
-      "B<sub>", axis.labels[1], "</sub>: ", round(By_vals[row(L.BxBy)], 5), "<br>",
-      "L(B<sub>", axis.labels[2], "</sub>,B<sub>", axis.labels[1], "</sub>) = ", round(L.BxBy, 5), "<br>",
-      "U(B<sub>", axis.labels[2], "</sub>,B<sub>", axis.labels[1], "</sub>) = ", round(U.BxBy, 5)
+      "B<sub>", axis.labels[1], "</sub> = ", round(Bx_vals[col(L.BxBy)], 5), "<br>",
+      "B<sub>", axis.labels[2], "</sub> = ", round(By_vals[row(L.BxBy)], 5), "<br>",
+      "U(B<sub>", axis.labels[1], "</sub>,B<sub>", axis.labels[2], "</sub>) = ", round(U.BxBy, 5), "<br>",
+      "L(B<sub>", axis.labels[1], "</sub>,B<sub>", axis.labels[2], "</sub>) = ", round(L.BxBy, 5)
     ),
     nrow = nrow(L.BxBy),
     ncol = ncol(L.BxBy)
   )
   
-  # Define plot
+  # Adjust max/min if needed so contour lines appear correctly
+  if (!any(is.na(contour.config))) {
+    contour.config <- c(min(contour.config[1:2]), max(contour.config[1:2]), contour.config[3])
+    if (initial.slope > 0) {
+      contour.config[1] <- contour.config[1] + (contour.config[2] - contour.config[1]) %% contour.config[3]
+      }
+    } else {
+      contour.config[2] <- contour.config[2] - (contour.config[2] - contour.config[1]) %% contour.config[3]
+    }
+  }
+  
+  # Settings for contour lines
+  if (any(is.na(contour.config))) {
+    contour.settings <- list(
+      type = 'levels',
+      showlabels = TRUE
+    )
+  } else {
+    contour.settings <- list(
+      type = 'levels',
+      start = contour.config[1],
+      end = contour.config[2],
+      size = contour.config[3],
+      showlabels = TRUE
+    )
+  }
+  
+  # Create the Plot
   fig <- plot_ly()
   
   if (initial.slope > 0) {
-    # Use L(Bx,By)
-    
+    # Use L(Bx,By) if initial.slope is positive
     fig <- fig %>% add_contour(
       x = Bx_vals,
       y = By_vals,
       z = L.BxBy,
       type = "contour",
-      autocontour = TRUE,
-      contours = list(
-        type = 'levels',
-        # start = practical.significance,
-        # end = min(L.BxBy, na.rm = TRUE) * .7,
-        # size = (practical.significance - min(L.BxBy, na.rm = TRUE) * .7) / no.contours,
-        showlabels = TRUE
-      ),
-      colorscale = "Greys",
+      autocontour = is.na(contour.config),
+      contours = contour.settings,
+      colorscale = list(c(0, "rgb(50,50,50)"), c(1, "rgb(200,200,200)")),
       line = list(color = "black"),
       text = tooltip,
       hoverinfo = "text"
     )
     
-    plot.title <- plotly::TeX(paste0("\\text{Contour Plot of } L(B_{\\text{", axis.labels[2], "}}, B_{\\text{", axis.labels[1], "}})"))
     line.color <- 'black'
-    
   } else {
-    # Use U(Bx,By)
+    # Use U(Bx,By) if initial.slope is non-positive
     fig <- fig %>% add_contour(
       x = Bx_vals,
       y = By_vals,
       z = U.BxBy,
       type = "contour",
-      autocontour = TRUE,
-      contours = list(
-        type = 'levels',
-        # start = practical.significance,
-        # end = max(U.BxBy, na.rm = TRUE) * .7,
-        # size = (max(U.BxBy, na.rm = TRUE) * .7 - practical.significance) / no.contours,
-        showlabels = TRUE
-      ),
-      colorscale = "Greys",
+      autocontour = is.na(contour.config),
+      contours = contour.settings,
+      colorscale = list(c(0, "rgb(50,50,50)"), c(1, "rgb(200,200,200)")),
       line = list(color = "white"),
       text = tooltip,
       hoverinfo = "text"
     )
     
-    plot.title <- plotly::TeX(paste0("\\text{Contour Plot of } U(B_{\\text{", axis.labels[2], "}}, B_{\\text{", axis.labels[1], "}})"))
     line.color <- 'gray'
-    
   }
   
   # Add line for R2.wx
   fig <- fig %>% add_trace(
     x = rep(R2.wx,200),
-    y = seq(0,.96,length.out=200),
+    y = seq(0,1,length.out=200),
     type = "scatter",
     mode = "lines",
     line = list(color = line.color, width = 5),
@@ -317,7 +291,7 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
   
   # Add line for R2.wy
   fig <- fig %>% add_trace(
-    x = seq(0,.96,length.out=200),
+    x = seq(0,1,length.out=200),
     y = rep(R2.wy,200),
     type = "scatter",
     mode = "lines",
@@ -332,11 +306,12 @@ cnfd.int.contour <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, no.contours = 
   )
   
   fig <- fig %>% layout(
-    title = list(text = plot.title),
-    xaxis = list(title = plotly::TeX(paste0("B_{\\text{", axis.labels[2], "}}")),
+    title = list(text = plotly::TeX(paste0("\\text{Contour Plot of } L(B_{\\text{", axis.labels[1], "}}, B_{\\text{", axis.labels[2], "}})"))),
+    xaxis = list(title = plotly::TeX(paste0("B_{\\text{", axis.labels[1], "}}")),
                  range = c(0,1)),
-    yaxis = list(title = plotly::TeX(paste0("B_{\\text{", axis.labels[1], "}}")),
-                 range = c(0,1))
+    yaxis = list(title = plotly::TeX(paste0("B_{\\text{", axis.labels[2], "}}")),
+                 range = c(0,1)),
+    margin = list(t = 70, l = 70, r = 70, b = 70)
   )
   
   fig <- fig %>% config(
