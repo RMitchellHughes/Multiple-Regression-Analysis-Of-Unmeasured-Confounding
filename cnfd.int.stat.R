@@ -1,13 +1,13 @@
-cnfd.int.stat <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, Uy, Ux) {
-  # Description of Variables: For all of the following variables, res.yw is defined as the
-  # residuals from regressing y onto w and res.xw is the residuals of regressing x onto w
+cnfd.int.stat <- function(cor.res, sd.ratio.res, R2.wx, R2.wy, Bx, By) {
+  # Description of Variables: For all of the following variables, res.xw is defined as the
+  # residuals from regressing x onto w and res.yw is the residuals of regressing y onto w
   
-  # - cor.res: number in range [-1,1] representing the correlation between res.yw  and res.xw
+  # - cor.res: number in range [-1,1] representing the correlation between res.xw  and res.yw
   # - sd.ratio.res: non-negative number representing the standard deviation of res.yw divided by standard deviation of res.xw
-  # - R2.wy: number in [0,1) that represents the coefficient of determination R^2_{w;y}
   # - R2.wx: number in [0,1) that represents the coefficient of determination R^2_{w;x}
-  # - Uy: number in range (0,1) that bounds the coefficient of determination R^2_{w,u;y}
-  # - Ux: number in range (0,1) that bounds the coefficient of determination R^2_{w,u;x}
+  # - R2.wy: number in [0,1) that represents the coefficient of determination R^2_{w;y}
+  # - Bx: number in range (0,1) that bounds the coefficient of determination R^2_{w,u;x}
+  # - By: number in range (0,1) that bounds the coefficient of determination R^2_{w,u;y}
   
   # Verify Parameters
   # cor.res:
@@ -38,20 +38,6 @@ cnfd.int.stat <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, Uy, Ux) {
     stop("Parameter 'sd.ratio.res' must be non-negative.")
   }
   
-  # R2.wy:
-  # Must be a single numeric value.
-  if (!is.numeric(R2.wy) || length(R2.wy) != 1) {
-    stop("Parameter 'R2.wy' must be a single numeric value.")
-  }
-  # Must not be NA/NaN.
-  if (is.na(R2.wy)) {
-    stop("Parameter 'R2.wy' cannot be NA/NaN.")
-  }
-  # Must be in range [0,1)
-  if (R2.wy < 0 || R2.wy >= 1) {
-    stop("Parameter 'R2.wy' must be a single numeric value in range [0,1).")
-  }
-  
   # R2.wx:
   # Must be a single numeric value.
   if (!is.numeric(R2.wx) || length(R2.wx) != 1) {
@@ -66,32 +52,46 @@ cnfd.int.stat <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, Uy, Ux) {
     stop("Parameter 'R2.wx' must be a single numeric value in range [0,1).")
   }
   
-  # Uy:
+  # R2.wy:
   # Must be a single numeric value.
-  if (!is.numeric(Uy) || length(Uy) != 1) {
-    stop("Parameter 'Uy' must be a single numeric value.")
+  if (!is.numeric(R2.wy) || length(R2.wy) != 1) {
+    stop("Parameter 'R2.wy' must be a single numeric value.")
   }
   # Must not be NA/NaN.
-  if (is.na(Uy)) {
-    stop("Parameter 'Uy' cannot be NA/NaN.")
+  if (is.na(R2.wy)) {
+    stop("Parameter 'R2.wy' cannot be NA/NaN.")
   }
-  # Must be strictly between 0 and 1 (exclusive).
-  if (Uy <= 0 || Uy >= 1) {
-    stop("Parameter 'Uy' must be a single numeric value between 0 and 1 (exclusive).")
+  # Must be in range [0,1)
+  if (R2.wy < 0 || R2.wy >= 1) {
+    stop("Parameter 'R2.wy' must be a single numeric value in range [0,1).")
   }
   
-  # Ux:
+  # Bx:
   # Must be a single numeric value.
-  if (!is.numeric(Ux) || length(Ux) != 1) {
-    stop("Parameter 'Ux' must be a single numeric value.")
+  if (!is.numeric(Bx) || length(Bx) != 1) {
+    stop("Parameter 'Bx' must be a single numeric value.")
   }
   # Must not be NA/NaN.
-  if (is.na(Ux)) {
-    stop("Parameter 'Ux' cannot be NA/NaN.")
+  if (is.na(Bx)) {
+    stop("Parameter 'Bx' cannot be NA/NaN.")
   }
   # Must be strictly between 0 and 1 (exclusive).
-  if (Ux <= 0 || Ux >= 1) {
-    stop("Parameter 'Ux' must be a single numeric value between 0 and 1 (exclusive).")
+  if (Bx <= 0 || Bx >= 1) {
+    stop("Parameter 'Bx' must be a single numeric value between 0 and 1 (exclusive).")
+  }
+  
+  # By:
+  # Must be a single numeric value.
+  if (!is.numeric(By) || length(By) != 1) {
+    stop("Parameter 'By' must be a single numeric value.")
+  }
+  # Must not be NA/NaN.
+  if (is.na(By)) {
+    stop("Parameter 'By' cannot be NA/NaN.")
+  }
+  # Must be strictly between 0 and 1 (exclusive).
+  if (By <= 0 || By >= 1) {
+    stop("Parameter 'By' must be a single numeric value between 0 and 1 (exclusive).")
   }
   
   # Function to calculate confounding interval
@@ -149,12 +149,12 @@ cnfd.int.stat <- function(cor.res, sd.ratio.res, R2.wy, R2.wx, Uy, Ux) {
   # This is where the methodology of "Partial Identification For Causal Inference
   # With Regression Models" by Knaeble and Hughes begins
   
-  # Calculate upper bounds uy and ux
-  uy <- (Uy - R2.wy) / (1 - R2.wy)
-  ux <- (Ux - R2.wx) / (1 - R2.wx)
+  # Calculate upper bounds bx and by
+  bx <- (Bx - R2.wx) / (1 - R2.wx)
+  by <- (By - R2.wy) / (1 - R2.wy)
   
   # Apply algorithm of "Regression Analysis of Unmeasured Confounding" to residual vectors
-  confounding.interval <- suppressWarnings(f(cor.res, sd.ratio.res, 0, ux, 0, uy, -1, 1))
+  confounding.interval <- suppressWarnings(f(cor.res, sd.ratio.res, 0, bx, 0, by, -1, 1))
   
   return(confounding.interval)
 }
